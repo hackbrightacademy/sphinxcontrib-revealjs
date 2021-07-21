@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }} | {{ docstitle|e }}</title>
+    <link
+      href="{{ pathto('_static/pygments.css', 1) }}"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <link
+      href="{{ pathto('_static/reveal.css', 1) }}"
+      rel="stylesheet"
+      type="text/css"
+    />
+    {%- if theme_revealjs_theme -%}
+      <link
+        href="{{ pathto('_static/' + theme_revealjs_theme + '.css', 1)}}"
+        rel="stylesheet"
+        type="text/css"
+      />
+    {%- endif -%}
+
+    {# <link href="{{ pathto('_static/' + style, 1) }}" rel="stylesheet" type="text/css" /> #}
+
+    {%- for css in css_files %}
+      {%- if css|attr("filename") %}
+        {{ css_tag(css) }}
+      {%- endif %}
+    {%- endfor %}
+  </head>
+  <body>
+
+    {%- block document %}
+      {%- block revealjs_container %}
+        <div class="reveal">
+
+          {%- block revealjs_slides %}
+            <div class="slides">
+
+              {{ body }}
+
+            </div>
+          {%- endblock revealjs_slides -%}
+
+          <footer id="slide-footer"></footer>
+        </div>
+      {%- endblock revealjs_container -%}
+
+    {%- endblock document %}
+
+    <script src="{{ pathto('_static/reveal.js', 1)}}"></script>
+
+    {%- block revealjs_init_script %}
+      <script>
+        Reveal.initialize({
+          hash: true,
+        });
+      </script>
+    {%- endblock %}
+
+    {%- for js in js_files %}
+      {%- if js|attr("filename") %}
+        {{ js_tag(js) }}
+      {%- endif %}
+    {%- endfor %}
+  </body>
+</html>
