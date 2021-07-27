@@ -62,15 +62,13 @@ class RevealJSTranslator(HTML5Translator):
             if att.startswith("data-")
         }
 
-        # html_attrs = get_attrs_as_html(node.attributes)
-
-        # if "data-background" in html_attrs:
-        #     bg_name = node.attributes["background"]
-        #     self._add_path_to_builder(bg_name, html_attrs["data-background"])
-        #     if bg_name in self.builder.images:
-        #         html_attrs["data-background"] = path.join(
-        #             self.builder.imagedir, self.builder.images[bg_name]
-        #         )
+        if "data-background" in data_atts:
+            bg_name = node.attributes["background"]
+            self._add_path_to_builder(bg_name, data_atts["data-background"])
+            if bg_name in self.builder.images:
+                data_atts["data-background"] = path.join(
+                    self.builder.imagedir, self.builder.images[bg_name]
+                )
 
         self.body.append(
             self.starttag(node, "section", CLASS="section", **data_atts)
@@ -79,11 +77,28 @@ class RevealJSTranslator(HTML5Translator):
     def visit_section(self, node: nodes.Node) -> None:
         """Only add a new section for 2nd- or 3rd-level sections."""
 
-        self.section_level = node.get("depth", self.section_level) or 1
-        self._new_section(node)
+        self.section_level += 1
+
+        if self.section_level in [2, 3]:
+            self._new_section(node)
 
     def depart_section(self, node: nodes.Node) -> None:
-        self.body.append("</section>")
+        self.section_level -= 1
+
+        if self.section_level in [1, 2]:
+            self.body.append("</section>\n")
+
+    def visit_title(self, node: nodes.Node) -> None:
+        if self.section_level in [1, 2]:
+            self.body.append("<section>\n")
+
+        super().visit_title(node)
+
+    def depart_title(self, node: nodes.Node) -> None:
+        super().depart_title(node)
+
+        if self.section_level in [1, 2]:
+            self.body.append("</section>\n")
 
     def visit_admonition(self, *args):
         raise nodes.SkipNode
@@ -143,14 +158,3 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
     def finish(self) -> None:
         self.finish_tasks.add_task(self.copy_revealjs_theme)
         return super().finish()
-
-
-def setup(app: Sphinx) -> None:
-    app.add_builder(RevealJSBuilder)
-    app.add_config_value("revealjs_permalinks", False, "html")
-    app.add_config_value("revealjs_search", False, "html")
-
-    app.add_config_value("revealjs_theme", "revealjs", "html")
-    app.add_config_value(
-        "revealjs_theme_options", {"revealjs_theme": "simple"}, "html"
-    )

@@ -2,7 +2,6 @@
 
 from typing import List
 from docutils.nodes import Node
-from sphinx.application import Sphinx
 
 from docutils import nodes
 from docutils.parsers.rst import directives
@@ -11,6 +10,7 @@ from sphinx.util.docutils import SphinxDirective
 from sphinx.util.typing import OptionSpec
 
 from . import optional_csscolorvalue, optional_uri
+from ..addnodes import interslide, newslide
 
 REVEALJS_TRANSITIONS = [  # see: https://revealjs.com/transitions/#styles
     "none",
@@ -68,10 +68,6 @@ class BaseSlide(SphinxDirective):
             node["data-transition-speed"] = transition_speed
 
 
-class interslide(nodes.General, nodes.Element):
-    pass
-
-
 class Interslide(BaseSlide):
     """An interstitial slide.
 
@@ -99,37 +95,20 @@ class Interslide(BaseSlide):
         return [slide_node]
 
 
-def visit_interslide(self, node: Node) -> None:
-    """Create a new slide.
+class Newslide(BaseSlide):
+    """Newslide directive."""
 
-    If the parent slide is a normal slide (i.e. it is not a title or sub-title
-    slide), close it.
+    optional_arguments = 1
+    final_argument_whitespace = True
 
-    This function should only be registered with the revealjs builder.
-    """
+    def run(self) -> List[nodes.Element]:
+        local_title = self.arguments[0] if self.arguments else ""
 
-    if self.section_level > 2:
-        self.body.append("</section>")
+        slide_node = newslide("", localtitle=local_title)
+        self.attach_options(slide_node)
 
-    self._new_section(node)
+        # This directive is only used for post-processing after the
+        # doctree has been resolved, so we should never have to call
+        # self.add_name
 
-
-def depart_interslide(self, node: Node) -> None:
-    """Only close the slide if we're a top-level interslide."""
-
-    if self.section_level == 2:
-        self.body.append("</section>")
-
-
-def ignore_interslide(self, node: Node) -> None:
-    raise nodes.SkipNode
-
-
-def setup(app: Sphinx) -> None:
-    app.add_node(
-        interslide,
-        html=(ignore_interslide, None),  # type: ignore
-        handouts=(ignore_interslide, None),  # type: ignore
-        revealjs=(visit_interslide, depart_interslide),
-    )
-    app.add_directive("interslide", Interslide)
+        return [slide_node]

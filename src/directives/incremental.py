@@ -11,15 +11,15 @@ Contents:
 from typing import List
 
 from docutils import nodes
-from docutils.parsers.rst import Directive, directives
+from docutils.parsers.rst import directives
+from sphinx.util.docutils import SphinxDirective
 
-from sphinx.application import Sphinx
 from sphinx.util import logging
 
 logger = logging.getLogger(__name__)
 
 
-class Incremental(Directive):
+class Incremental(SphinxDirective):
     """Incremental directive."""
 
     required_arguments = 1
@@ -109,8 +109,3 @@ class Incremental(Directive):
                 self.increment_nested_list_items(node)
 
             return node.children
-
-
-def setup(app: Sphinx) -> None:
-    app.add_directive("incremental", Incremental)
-    app.add_directive("incr", Incremental)
