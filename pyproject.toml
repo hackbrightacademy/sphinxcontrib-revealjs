@@ -3,6 +3,10 @@ name = "sphinxcontrib-revealjs"
 version = "0.1.0"
 description = "Build slides with RevealJS."
 authors = ["Ashley Trinh <ashley@hackbrightacademy.com>"]
+packages = [
+  { include = "sphinxcontrib" },
+  { include = "sphinxcontrib/revealjs" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.8"

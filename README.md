@@ -30,3 +30,19 @@ Headings 1&ndash;2 automatically create slide breaks
 - newslide
 - speaker
 - incremental
+
+## Development
+
+Depend on Revealjs (git submodule). See https://git-scm.com/book/en/v2/Git-Tools-Submodules
+
+##### Clone this repo w/ submodules
+
+```
+$ git clone --recurse-submodules <url for this repo>
+```
+
+##### Pull upstream changes
+
+```
+$ git submodule update --remote lib/revealjs
+```
