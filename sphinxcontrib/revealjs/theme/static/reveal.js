@@ -1,1 +1,1 @@
-../../../lib/revealjs/dist/reveal.js
+../../../../lib/revealjs/dist/reveal.js
