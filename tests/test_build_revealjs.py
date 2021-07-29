@@ -9,3 +9,4 @@ def test_revealjs_build(app):
 
     assert (app.outdir / "_static/reveal.css").exists()
     assert (app.outdir / "_static/reveal.js").exists()
+    assert (app.outdir / "_static/simple.css").exists()

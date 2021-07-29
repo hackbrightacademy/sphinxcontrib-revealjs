@@ -1,4 +1,5 @@
 import pytest
+from bs4 import BeautifulSoup, element
 
 
 def with_revealjs_interslide(*args, **kw):
@@ -12,12 +13,38 @@ def with_revealjs_interslide(*args, **kw):
 
 @with_revealjs_interslide()
 def test_interslide(content_soup):
-    assert len(content_soup.select(".interslide")) == 3
+    compare = BeautifulSoup(
+        "".join(
+            (
+                '<section class="interslide section">',
+                "<p>Interslide 1</p>",
+                "</section>",
+            )
+        ),
+        "html.parser",
+    )
+    interslide = content_soup.find("section", class_="interslide")
+    assert interslide.prettify().strip() == compare.prettify().strip()
 
 
 @with_revealjs_interslide()
-def test_interslide_follows_previous_sibling(content_soup):
-    for idx, el in enumerate(content_soup.select(".interslide")):
-        el.previous_sibling.parent.find("section", id=True)[
-            "id"
-        ] == f"slide-{idx + 1}"
+def test_interslide_follows_section(content_soup):
+    compare = BeautifulSoup(
+        "".join(
+            (
+                "<section>",
+                "<h1>Slide 1</h1>",
+                "</section>",
+            )
+        ),
+        "html.parser",
+    )
+    interslide = content_soup.find("section", class_="interslide")
+
+    element_sibling = None
+    for sibling in interslide.previous_siblings:
+        if isinstance(sibling, element.Tag):
+            element_sibling = sibling
+            break
+
+    assert element_sibling.prettify().strip() == compare.prettify().strip()
