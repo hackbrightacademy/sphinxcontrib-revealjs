@@ -5,3 +5,4 @@ example
 .vscode
 *.code-workspace
 dist
+.DS_Store
