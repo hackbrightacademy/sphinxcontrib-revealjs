@@ -6,3 +6,5 @@ example
 *.code-workspace
 dist
 .DS_Store
+*.pyc
+__pycache__
