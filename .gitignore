@@ -1,5 +1,4 @@
 .python-version
-example
 *.lock
 **/__pycache__*
 .vscode
