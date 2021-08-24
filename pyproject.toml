@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sphinxcontrib-revealjs"
-version = "0.1-alpha"
+version = "0.1-alpha.1"
 description = "Build slides with RevealJS."
 authors = ["Ashley Trinh <ashley@hackbrightacademy.com>"]
 packages = [
