@@ -15,8 +15,6 @@ import sphinx
 from sphinx.testing import comparer
 from sphinx.testing.path import path
 
-from bs4 import BeautifulSoup
-
 pytest_plugins = "sphinx.testing.fixtures"
 
 # Exclude 'roots' dirs for pytest test collector
@@ -57,13 +55,3 @@ def _initialize_test_directory(session):
 def pytest_sessionstart(session):
     _initialize_test_directory(session)
 
-
-# Not from sphinx/tests
-
-
-@pytest.fixture
-def content_soup(app):
-    app.build()
-    return BeautifulSoup(
-        (app.outdir / "index.html").read_text(), "html.parser"
-    )
