@@ -4,8 +4,7 @@ version = "0.1-alpha"
 description = "Build slides with RevealJS."
 authors = ["Ashley Trinh <ashley@hackbrightacademy.com>"]
 packages = [
-  { include = "sphinxcontrib" },
-  { include = "sphinxcontrib/revealjs" }
+  { include = "sphinxcontrib" }
 ]
 
 [tool.poetry.dependencies]
@@ -17,11 +16,8 @@ cssutils = "^2.3.0"
 black = "^21.7b0"
 sphinx-autobuild = "^2021.3.14"
 pytest = "^6.2.4"
-beautifulsoup4 = "^4.9.3"
+mypy = "^0.910"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-[scripts]
-build = "sphinx-autobuild . _build -b revealjs"
