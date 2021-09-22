@@ -53,11 +53,13 @@
     {%- endblock document %}
 
     <script src="{{ pathto('_static/reveal.js', 1)}}"></script>
+    <script src="{{ pathto('_static/plugin/notes/notes.js', 1)}}"></script>
 
     {%- block revealjs_init_script %}
       <script>
         Reveal.initialize({
           hash: true,
+          plugins: [RevealNotes]
         });
       </script>
     {%- endblock %}
