@@ -27,13 +27,14 @@ def setup(app: Sphinx) -> None:
     )
 
     # Config
-    app.add_config_value("revealjs_vertical_slides", True, "html")
     app.add_config_value("revealjs_permalinks", False, "html")
     app.add_config_value("revealjs_search", False, "html")
     app.add_config_value("revealjs_theme", "revealjs", "html")
     app.add_config_value(
         "revealjs_theme_options", {"revealjs_theme": "simple.css"}, "html"
     )
+    # FIXME: one day we'll actually support this config value but not today!
+    # app.add_config_value("revealjs_vertical_slides", True, "html")
 
     # Nodes
     app.add_node(addnodes.newslide)
