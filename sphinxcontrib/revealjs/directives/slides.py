@@ -105,7 +105,7 @@ class Newslide(BaseSlide):
         local_title = self.arguments[0] if self.arguments else ""
 
         slide_node = newslide("", localtitle=local_title)
-        self.attach_options(slide_node)
+        self.options2atts(slide_node)
 
         # This directive is only used for post-processing after the
         # doctree has been resolved, so we should never have to call
