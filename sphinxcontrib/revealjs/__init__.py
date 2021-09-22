@@ -32,7 +32,7 @@ def setup(app: Sphinx) -> None:
     app.add_config_value("revealjs_search", False, "html")
     app.add_config_value("revealjs_theme", "revealjs", "html")
     app.add_config_value(
-        "revealjs_theme_options", {"revealjs_theme": "simple"}, "html"
+        "revealjs_theme_options", {"revealjs_theme": "simple.css"}, "html"
     )
 
     # Nodes

@@ -16,13 +16,15 @@
     />
     {%- if theme_revealjs_theme -%}
       <link
-        href="{{ pathto('_static/' + theme_revealjs_theme + '.css', 1)}}"
+        href="{{ pathto('_static/' + theme_revealjs_theme, 1)}}"
         rel="stylesheet"
         type="text/css"
       />
     {%- endif -%}
 
-    {# <link href="{{ pathto('_static/' + style, 1) }}" rel="stylesheet" type="text/css" /> #}
+    {%- if style -%}
+      <link href="{{ pathto('_static/' + style, 1) }}" rel="stylesheet" type="text/css" />
+    {%- endif -%}
 
     {%- for css in css_files %}
       {%- if css|attr("filename") %}

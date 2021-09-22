@@ -148,7 +148,7 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
                 copy_asset(
                     path.join(
                         entry,
-                        f'revealjs_themes/{theme_opts["revealjs_theme"]}.css',
+                        f'revealjs_themes/{theme_opts["revealjs_theme"]}',
                     ),
                     path.join(self.outdir, "_static"),
                     excluded=DOTFILES,
