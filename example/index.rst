@@ -8,12 +8,14 @@ Heading 2
 Heading 3
 ---------
 
-Wew
+The quick brown fox jumps over the lazy dog.
 
 Heading 4
 +++++++++
 
 Contents
+
+.. newslide::
 
 - Contents in a bulleted list
 
