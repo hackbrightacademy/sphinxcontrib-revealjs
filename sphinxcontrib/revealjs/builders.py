@@ -3,9 +3,12 @@
 from typing import Dict, Any, Tuple
 from sphinx.application import Sphinx
 from docutils import nodes
+from bs4.element import Tag
 
 from os import path
 from pathlib import PurePath
+from itertools import takewhile
+from textwrap import dedent
 
 from sphinx.locale import __
 from sphinx.util import logging
@@ -13,6 +16,8 @@ from sphinx.util.fileutil import copy_asset
 from sphinx.util.matching import DOTFILES
 from sphinx.builders.html import StandaloneHTMLBuilder
 from sphinx.writers.html5 import HTML5Translator
+
+from .soupbridge import SoupBridge, HEADING_TAGS
 
 IMG_EXTENSIONS = ["jpg", "png", "gif", "svg"]
 
@@ -74,32 +79,6 @@ class RevealJSTranslator(HTML5Translator):
             self.starttag(node, "section", CLASS="section", **data_atts)
         )
 
-    def visit_section(self, node: nodes.Node) -> None:
-        """Only add a new section for 2nd- or 3rd-level sections."""
-
-        self.section_level += 1
-
-        if self.section_level in [2, 3]:
-            self._new_section(node)
-
-    def depart_section(self, node: nodes.Node) -> None:
-        self.section_level -= 1
-
-        if self.section_level in [1, 2]:
-            self.body.append("</section>\n")
-
-    def visit_title(self, node: nodes.Node) -> None:
-        if self.section_level in [1, 2]:
-            self.body.append("<section>\n")
-
-        super().visit_title(node)
-
-    def depart_title(self, node: nodes.Node) -> None:
-        super().depart_title(node)
-
-        if self.section_level in [1, 2]:
-            self.body.append("</section>\n")
-
     def visit_admonition(self, *args):
         raise nodes.SkipNode
 
@@ -134,6 +113,24 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
             self.config.revealjs_theme_options,
         )
 
+    def init_js_files(self) -> None:
+        super().init_js_files()
+
+        self.add_js_file("reveal.js", priority=500)
+        self.add_js_file("plugin/notes/notes.js", priority=500)
+        self.add_js_file(
+            None,
+            body=dedent(
+                """
+                Reveal.initialize({
+                  hash: true,
+                  plugins: [RevealNotes]
+                });
+            """
+            ),
+            priority=500,
+        )
+
     def copy_revealjs_theme(self) -> None:
         def onerror(filename: str, error: Exception) -> None:
             logger.warning(
@@ -155,6 +152,103 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
                     onerror=onerror,
                 )
 
+    def mark_slide_depths(self):
+        soup_bridge, soup = self.soup_bridge, self.soup_bridge.soup
+
+        for slide in soup.select("div.slides section"):
+            depth = soup_bridge.get_tag_depth(
+                slide, stopwhen=lambda t: "slides" in t.get("class", [])
+            )
+            slide.attrs["data-depth"] = depth
+
+    def unwrap_nested_slides(self):
+        """Unwrap and flatten any nested slides.
+
+        RevealJS turns <section> tags into slides.
+        """
+
+        soup = self.soup_bridge.soup
+
+        slides_container = soup.new_tag("div", attrs={"class": "slides"})
+
+        for slide in soup.select("div.slides section"):
+            xslide = slide.extract()
+
+            for child in takewhile(
+                lambda child: child.name != "section", xslide.children
+            ):
+                xslide.append(child.extract())
+
+            slides_container.append(xslide)
+
+        soup.find("div", class_="slides").replace_with(slides_container)
+
+    def handle_newslides(self):
+        soup_bridge, soup = self.soup_bridge, self.soup_bridge.soup
+
+        for newslide in soup.select(".newslide"):
+            parent = newslide.parent
+
+            newslide_container = soup_bridge.copy_tag(parent)
+            del newslide_container["id"]  # Remove id
+            newslide_container["class"] = "slide-break"
+            newslide_container["data-slide-break-for"] = parent["id"]
+
+            # Copy title
+            parent_title = parent.find(lambda t: t.name in HEADING_TAGS)
+            copied_title = soup.new_tag(parent_title.name)
+            copied_title.string = soup.new_string(parent_title.string)
+            newslide_container.append(copied_title)
+
+            for sib in takewhile(
+                lambda child: child.get("class") != "newslide"
+                if type(child) is Tag
+                else True,
+                list(newslide.next_siblings),
+            ):
+                newslide_container.append(sib.extract())
+
+            parent.insert_after(newslide_container)
+            newslide.decompose()
+
+    def handle_vertical_slides(self):
+        soup = self.soup_bridge.soup
+
+        for slide in soup.find_all(
+            lambda tag: tag.get("data-depth") in (1, 2)
+        ):
+            wrapper = slide.wrap(soup.new_tag("section"))
+
+            if slide.attrs["data-depth"] == 2:
+                for inner_slide in takewhile(
+                    lambda tag: tag.attrs["data-depth"] > 2,
+                    list(wrapper.next_siblings),
+                ):
+                    wrapper.append(inner_slide.extract())
+
+    def rewrite_html_for_revealjs(self):
+        """Rearrange rendered HTML so it plays nice with RevealJS.
+
+        We used to override visit/depart methods in RevealJSTranslator
+        to accomplish what this method does but the logic got really
+        *weird* and difficult to understand.
+
+        This is an unconventional way to do things but it should be
+        far more understandable and maintainable.
+        """
+
+        outfile = self.get_outfilename(self.current_docname)
+        self.soup_bridge = SoupBridge(outfile)
+
+        self.mark_slide_depths()
+        self.unwrap_nested_slides()
+        self.handle_newslides()
+        if self.config.revealjs_vertical_slides:
+            self.handle_vertical_slides()
+
+        self.soup_bridge.write()
+
     def finish(self) -> None:
+        self.finish_tasks.add_task(self.rewrite_html_for_revealjs)
         self.finish_tasks.add_task(self.copy_revealjs_theme)
         return super().finish()

@@ -33,11 +33,15 @@ def setup(app: Sphinx) -> None:
     app.add_config_value(
         "revealjs_theme_options", {"revealjs_theme": "simple.css"}, "html"
     )
-    # FIXME: one day we'll actually support this config value but not today!
-    # app.add_config_value("revealjs_vertical_slides", True, "html")
+    app.add_config_value("revealjs_vertical_slides", True, "html")
+    app.add_config_value("revealjs_break_on_transition", True, "html")
 
     # Nodes
-    app.add_node(addnodes.newslide)
+    app.add_node(
+        addnodes.newslide,
+        html=(ignore_node, None),
+        revealjs=(addnodes.visit_newslide, addnodes.depart_newslide),
+    )
     app.add_node(
         addnodes.interslide,
         html=(ignore_node, None),
@@ -57,9 +61,7 @@ def setup(app: Sphinx) -> None:
     app.add_directive("incr", Incremental)
 
     # Transforms
-    # app.connect("doctree-read", transforms.doctree_read)
     app.connect("doctree-read", transforms.migrate_transitions_to_newslides)
-    app.connect("doctree-resolved", transforms.process_newslides)
 
     # Builders
     app.add_builder(builders.RevealJSBuilder)

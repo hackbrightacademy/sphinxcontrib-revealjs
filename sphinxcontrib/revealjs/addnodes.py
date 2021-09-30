@@ -27,17 +27,11 @@ def visit_interslide(self, node: nodes.Node) -> None:
     This function should only be registered with the revealjs builder.
     """
 
-    if self.section_level > 2:
-        self.body.append("</section>\n")
-
     self._new_section(node)
 
 
 def depart_interslide(self, node: nodes.Node) -> None:
-    """Only close the slide if we're a top-level interslide."""
-
-    if self.section_level == 2:
-        self.body.append("</section>\n")
+    self.body.append("</section>\n")
 
 
 def visit_speakernote(self, node: nodes.Node) -> None:
@@ -47,3 +41,11 @@ def visit_speakernote(self, node: nodes.Node) -> None:
 
 def depart_speakernote(self, node: nodes.Node) -> None:
     self.body.append("</aside>\n")
+
+
+def visit_newslide(self, node: nodes.Node) -> None:
+    self.body.append('<div class="newslide">')
+
+
+def depart_newslide(self, node: nodes.Node) -> None:
+    self.body.append("</div>\n")

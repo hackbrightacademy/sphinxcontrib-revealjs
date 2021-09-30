@@ -52,22 +52,8 @@
 
     {%- endblock document %}
 
-    <script src="{{ pathto('_static/reveal.js', 1)}}"></script>
-    <script src="{{ pathto('_static/plugin/notes/notes.js', 1)}}"></script>
-
-    {%- block revealjs_init_script %}
-      <script>
-        Reveal.initialize({
-          hash: true,
-          plugins: [RevealNotes]
-        });
-      </script>
-    {%- endblock %}
-
-    {%- for js in js_files %}
-      {%- if js|attr("filename") %}
-        {{ js_tag(js) }}
-      {%- endif %}
+    {%- for js in script_files %}
+      {{ js_tag(js) }}
     {%- endfor %}
   </body>
 </html>
