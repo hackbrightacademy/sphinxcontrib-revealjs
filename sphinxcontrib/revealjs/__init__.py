@@ -1,8 +1,8 @@
 """RevealJS extenstion for Sphinx."""
 
-from audioop import add
 from docutils.nodes import Node
 
+from os import path
 from pathlib import Path
 from sphinx.application import Sphinx
 
@@ -23,8 +23,10 @@ def setup(app: Sphinx) -> None:
     # Theme
     app.add_html_theme(
         "revealjs",
-        (Path(__file__).parent / Path("theme")).resolve(),
+        (Path(builders.package_dir) / Path("theme")).resolve(),
     )
+
+    app.add_js_file("reveal.js")
 
     # Config
     app.add_config_value("revealjs_permalinks", False, "html")

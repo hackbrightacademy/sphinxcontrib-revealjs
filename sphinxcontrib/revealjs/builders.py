@@ -1,27 +1,29 @@
 """Sphinx writer for slides."""
 
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, List
 from sphinx.application import Sphinx
 from docutils import nodes
 from bs4.element import Tag
 
 from os import path
-from pathlib import PurePath
+from pathlib import PurePath, Path
 from itertools import takewhile
 from textwrap import dedent
 
 from sphinx.locale import __
-from sphinx.util import logging
+from sphinx.util import logging, progress_message
 from sphinx.util.fileutil import copy_asset
-from sphinx.util.matching import DOTFILES
+from sphinx.util.osutil import copyfile, ensuredir
+from sphinx.util.matching import DOTFILES, Matcher
 from sphinx.builders.html import StandaloneHTMLBuilder
 from sphinx.writers.html5 import HTML5Translator
 
-from .soupbridge import SoupBridge, HEADING_TAGS
+from sphinxcontrib.revealjs.soupbridge import SoupBridge, HEADING_TAGS
 
 IMG_EXTENSIONS = ["jpg", "png", "gif", "svg"]
 
 logger = logging.getLogger(__name__)
+package_dir = path.abspath(path.dirname(__file__))
 
 
 def get_attrs_as_html(node_attrs: Dict[str, Any]):
@@ -94,6 +96,8 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
 
     name = "revealjs"
     default_translator_class = RevealJSTranslator
+    revealjs_dist = path.join(package_dir, "lib/revealjs/dist")
+    revealjs_plugindir = path.join(package_dir, "lib/revealjs/plugin")
 
     def init(self) -> None:
         super().init()
@@ -113,6 +117,47 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
             self.config.revealjs_theme_options,
         )
 
+    def copy_static_files(self) -> None:
+        super().copy_static_files()
+
+        try:
+            with progress_message(__("copying static files")):
+                self.copy_revealjs_files()
+                self.copy_revealjs_plugin()
+                self.copy_revealjs_theme()
+        except OSError as err:
+            logger.warning(__("cannot copy static file %r"), err)
+
+    def copy_revealjs_files(self) -> None:
+        copyfile(
+            path.join(self.revealjs_dist, "reveal.css"),
+            path.join(self.outdir, "_static", "reveal.css"),
+        )
+        copyfile(
+            path.join(self.revealjs_dist, "reset.css"),
+            path.join(self.outdir, "_static", "reset.css"),
+        )
+        copyfile(
+            path.join(self.revealjs_dist, "reveal.js"),
+            path.join(self.outdir, "_static", "reveal.js"),
+        )
+
+    def copy_revealjs_plugin(self) -> None:
+        copy_asset(
+            path.join(self.revealjs_plugindir, "notes"),
+            path.join(self.outdir, "_static", "plugin", "notes"),
+        )
+
+    def copy_revealjs_theme(self) -> None:
+        if self.theme:
+            _, theme_opts = self.get_theme_config()
+            revealjs_theme = theme_opts["revealjs_theme"]
+
+            copyfile(
+                path.join(self.revealjs_dist, "theme", revealjs_theme),
+                path.join(self.outdir, "_static", revealjs_theme),
+            )
+
     def init_js_files(self) -> None:
         super().init_js_files()
 
@@ -131,26 +176,18 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
             priority=500,
         )
 
-    def copy_revealjs_theme(self) -> None:
-        def onerror(filename: str, error: Exception) -> None:
-            logger.warning(
-                __("Failed to copy a file in html_static_file: %s: %r"),
-                filename,
-                error,
-            )
+    def init_css_files(self) -> None:
+        super().init_css_files()
+
+        self.add_css_file("reset.css", priority=500)
+        self.add_css_file("reveal.css", priority=500)
 
         if self.theme:
             _, theme_opts = self.get_theme_config()
-            for entry in self.theme.get_theme_dirs()[::-1]:
-                copy_asset(
-                    path.join(
-                        entry,
-                        f'revealjs_themes/{theme_opts["revealjs_theme"]}',
-                    ),
-                    path.join(self.outdir, "_static"),
-                    excluded=DOTFILES,
-                    onerror=onerror,
-                )
+            self.add_css_file(
+                theme_opts["revealjs_theme"],
+                priority=500,
+            )
 
     def mark_slide_depths(self):
         soup_bridge, soup = self.soup_bridge, self.soup_bridge.soup
@@ -250,5 +287,4 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
 
     def finish(self) -> None:
         self.finish_tasks.add_task(self.rewrite_html_for_revealjs)
-        self.finish_tasks.add_task(self.copy_revealjs_theme)
         return super().finish()

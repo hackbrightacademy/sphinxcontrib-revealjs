@@ -5,8 +5,15 @@ description = "Build slides with RevealJS."
 authors = ["Ashley Trinh <ashley@hackbrightacademy.com>"]
 license = "MPL-2.0"
 readme = "README.md"
-packages = [
-  { include = "sphinxcontrib" }
+packages = [{ include = "sphinxcontrib" }]
+exclude = [
+  "**/lib/revealjs/.*",
+  "**/lib/revealjs/*.*",
+  "**/lib/revealjs/css",
+  "**/lib/revealjs/examples",
+  "**/lib/revealjs/js",
+  "**/lib/revealjs/test",
+  "**/lib/revealjs/dist/**/*.esm.js",
 ]
 
 [tool.poetry.dependencies]
@@ -23,5 +30,5 @@ mypy = "^0.910"
 ipython = "^7.27.0"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["setuptools", "poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
