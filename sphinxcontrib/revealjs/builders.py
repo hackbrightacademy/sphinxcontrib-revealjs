@@ -125,6 +125,16 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
                 self.copy_revealjs_files()
                 self.copy_revealjs_plugin()
                 self.copy_revealjs_theme()
+
+                # This is hacky, but we need to call these methods again
+                # so that users can override RevealJS files. Code here
+                # is copied from sphinx.builders.html
+                context = self.globalcontext.copy()
+                if self.indexer is not None:
+                    context.update(self.indexer.context_for_searchtool())
+                self.copy_theme_static_files(context)
+                self.copy_html_static_files(context)
+
         except OSError as err:
             logger.warning(__("cannot copy static file %r"), err)
 
