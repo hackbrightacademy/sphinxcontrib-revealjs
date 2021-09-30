@@ -5,7 +5,6 @@ from typing import Optional
 from docutils.parsers.rst import directives
 
 import xml.dom
-import cssutils
 
 
 def optional_csscolorvalue(argument: Optional[str]) -> Optional[str]:
@@ -14,12 +13,13 @@ def optional_csscolorvalue(argument: Optional[str]) -> Optional[str]:
     if argument is None:
         return None
     else:
-        try:
-            color = cssutils.css.ColorValue(argument)
-        except xml.dom.SyntaxErr:
-            raise ValueError(f"{argument} is not a valid CSS color.")
+        pass
+        # try:
+        #     color = cssutils.css.ColorValue(argument)
+        # except xml.dom.SyntaxErr:
+        #     raise ValueError(f"{argument} is not a valid CSS color.")
 
-        return color.cssText
+        # return color.cssText
 
 
 def optional_uri(argument: Optional[str]) -> Optional[str]:
