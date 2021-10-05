@@ -37,6 +37,7 @@ def setup(app: Sphinx) -> None:
     )
     app.add_config_value("revealjs_vertical_slides", True, "html")
     app.add_config_value("revealjs_break_on_transition", True, "html")
+    app.add_config_value("revealjs_autobreak", [1, 2, 3], "html")
 
     # Nodes
     app.add_node(

@@ -258,6 +258,27 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
             parent.insert_after(newslide_container)
             newslide.decompose()
 
+    def handle_autobreak(self):
+        soup = self.soup_bridge.soup
+
+        for slide in soup.select("div.slides section"):
+            if "data-depth" in slide.attrs and slide.attrs[
+                "data-depth"
+            ] not in (self.config.revealjs_autobreak or (1,)):
+                new_section = soup.new_tag(
+                    "div",
+                    attrs={
+                        "class": "section",
+                        "data-depth": slide.attrs["data-depth"],
+                    },
+                )
+
+                for child in slide.children:
+                    new_section.append(child.extract())
+
+                slide.previous_sibling.append(new_section)
+                slide.decompose()
+
     def handle_vertical_slides(self):
         soup = self.soup_bridge.soup
 
@@ -291,7 +312,10 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
         self.unwrap_nested_slides()
         self.handle_newslides()
         if self.config.revealjs_vertical_slides:
+            logger.info(__("Handling vertical slides..."))
             self.handle_vertical_slides()
+
+        self.handle_autobreak()
 
         self.soup_bridge.write()
 

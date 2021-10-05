@@ -18,8 +18,9 @@ class SoupBridge:
             self.soup = BeautifulSoup(f.read(), parser)
 
     def write(self):
+        contents = self.soup.prettify()
         with open(self.filename, "w") as f:
-            f.write(self.soup.prettify())
+            f.write(contents)
 
     def get_tag_depth(
         self, tag: Tag, stopwhen: Callable[[Tag], bool] = None
