@@ -3,14 +3,20 @@ from docutils.nodes import Structural, Element, Invisible
 
 
 class Slide(Structural, Element):
-    pass
+    @property
+    def data_attributes(self):
+        return {
+            attr: val
+            for attr, val in self.attributes.items()
+            if attr.startswith("data-")
+        }
 
 
 class interslide(Slide):
     pass
 
 
-class newslide(Invisible, Element):
+class newslide(Slide, Invisible):
     pass
 
 
@@ -44,8 +50,11 @@ def depart_speakernote(self, node: nodes.Node) -> None:
 
 
 def visit_newslide(self, node: nodes.Node) -> None:
-    self.body.append('<div class="newslide">')
+    self.body.append(
+        self.starttag(node, "div", CLASS="newslide", **node.data_attributes)
+    )
 
 
 def depart_newslide(self, node: nodes.Node) -> None:
+
     self.body.append("</div>\n")

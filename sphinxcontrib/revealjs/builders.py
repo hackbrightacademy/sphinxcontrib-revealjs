@@ -50,35 +50,16 @@ class RevealJSTranslator(HTML5Translator):
         super().__init__(*args, **kwargs)
         self.builder.add_permalinks = False
 
-    def _add_path_to_builder(self, name: str, path: str) -> None:
-        """Add path to a resource to builder."""
-
-        parsed_path = PurePath(path.lower())
-        if parsed_path.suffix in [f".{ext}" for ext in IMG_EXTENSIONS]:
-            self.builder.images[name] = parsed_path.name
-
     def _new_section(self, node: nodes.Node) -> None:
         """Add a new section.
 
         In RevealJS, a new section is a new slide.
         """
 
-        data_atts = {
-            att: val
-            for att, val in node.attributes.items()
-            if att.startswith("data-")
-        }
-
-        if "data-background" in data_atts:
-            bg_name = node.attributes["background"]
-            self._add_path_to_builder(bg_name, data_atts["data-background"])
-            if bg_name in self.builder.images:
-                data_atts["data-background"] = path.join(
-                    self.builder.imagedir, self.builder.images[bg_name]
-                )
-
         self.body.append(
-            self.starttag(node, "section", CLASS="section", **data_atts)
+            self.starttag(
+                node, "section", CLASS="section", **node.data_attributes
+            )
         )
 
     def visit_admonition(self, *args):
@@ -237,9 +218,13 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
             parent = newslide.parent
 
             newslide_container = soup_bridge.copy_tag(parent)
+
             del newslide_container["id"]  # Remove id
             newslide_container["class"] = "slide-break"
             newslide_container["data-slide-break-for"] = parent["id"]
+
+            for attr, val in newslide.attrs.items():
+                newslide_container[attr] = val
 
             # Copy title
             parent_title = parent.find(lambda t: t.name in HEADING_TAGS)
@@ -261,7 +246,11 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
     def handle_autobreak(self):
         soup = self.soup_bridge.soup
 
-        for slide in soup.select("div.slides section"):
+        for slide in [
+            s
+            for s in soup.select("div.slides section")
+            if "slide-break" not in s.attrs.get("class", "")
+        ]:
             if "data-depth" in slide.attrs and slide.attrs[
                 "data-depth"
             ] not in (self.config.revealjs_autobreak or (1,)):
@@ -276,7 +265,12 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
                 for child in slide.children:
                     new_section.append(child.extract())
 
-                slide.previous_sibling.append(new_section)
+                try:
+                    slide.previous_sibling.append(new_section)
+                except AttributeError:
+                    import pdb
+
+                    pdb.set_trace()
                 slide.decompose()
 
     def handle_vertical_slides(self):
@@ -289,7 +283,8 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
 
             if slide.attrs["data-depth"] == 2:
                 for inner_slide in takewhile(
-                    lambda tag: tag.attrs["data-depth"] > 2,
+                    lambda tag: type(tag) is Tag
+                    and tag.attrs["data-depth"] > 2,
                     list(wrapper.next_siblings),
                 ):
                     wrapper.append(inner_slide.extract())

@@ -3,6 +3,8 @@
 from typing import List
 from docutils.nodes import Node
 
+from os import path
+
 from docutils import nodes
 from docutils.parsers.rst import directives
 
@@ -46,7 +48,7 @@ class BaseSlide(SphinxDirective):
         "transition-speed": optional_revealjstransitionspeed,
     }
 
-    def options2atts(self, node: Node) -> None:
+    def handle_options(self, node: Node) -> None:
         """Set ``self.options`` as RevealJS-compatible attributes on ``node``."""
 
         node["classes"] += self.options.get("class", [])
@@ -55,9 +57,16 @@ class BaseSlide(SphinxDirective):
         if bg_color:
             node["data-background-color"] = bg_color
 
-        bg_image = self.options.get("background-image")
-        if bg_image:
-            node["data-background-image"] = bg_image
+        bg_image_path = self.options.get("background-image")
+        if bg_image_path:
+            builder = self.env.app.builder
+
+            # If this isn't a local URI, add image path to builder
+            if "://" not in bg_image_path:
+                builder.images[bg_image_path] = bg_image_path
+                bg_image_path = path.join(builder.imagedir, bg_image_path)
+
+            node["data-background-image"] = bg_image_path
 
         transition = self.options.get("transition")
         if transition:
@@ -83,7 +92,7 @@ class Interslide(BaseSlide):
             "\n".join(self.content), classes=["interslide"]
         )
 
-        self.options2atts(slide_node)
+        self.handle_options(slide_node)
 
         if self.arguments:
             slide_node.insert(0, nodes.title(text=self.arguments[0]))
@@ -105,7 +114,7 @@ class Newslide(BaseSlide):
         local_title = self.arguments[0] if self.arguments else ""
 
         slide_node = newslide("", localtitle=local_title)
-        self.options2atts(slide_node)
+        self.handle_options(slide_node)
 
         # This directive is only used for post-processing after the
         # doctree has been resolved, so we should never have to call
