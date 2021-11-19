@@ -3,13 +3,7 @@ from docutils.nodes import Structural, Element, Invisible
 
 
 class Slide(Structural, Element):
-    @property
-    def data_attributes(self):
-        return {
-            attr: val
-            for attr, val in self.attributes.items()
-            if attr.startswith("data-")
-        }
+    pass
 
 
 class interslide(Slide):
@@ -50,8 +44,10 @@ def depart_speakernote(self, node: nodes.Node) -> None:
 
 
 def visit_newslide(self, node: nodes.Node) -> None:
-    self.body.append(
-        self.starttag(node, "div", CLASS="newslide", **node.data_attributes)
+    self._new_section(
+        node,
+        tagname="div",
+        classes_override=node["classes"] + ["newslide"],
     )
 
 

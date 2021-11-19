@@ -1,20 +1,17 @@
 """Sphinx writer for slides."""
 
-from typing import Dict, Any, Tuple, List
-from sphinx.application import Sphinx
+from typing import Dict, Any, Tuple, List, Optional
 from docutils import nodes
 from bs4.element import Tag
 
 from os import path
-from pathlib import PurePath, Path
 from itertools import takewhile
 from textwrap import dedent
 
 from sphinx.locale import __
 from sphinx.util import logging, progress_message
 from sphinx.util.fileutil import copy_asset
-from sphinx.util.osutil import copyfile, ensuredir
-from sphinx.util.matching import DOTFILES, Matcher
+from sphinx.util.osutil import copyfile
 from sphinx.builders.html import StandaloneHTMLBuilder
 from sphinx.writers.html5 import HTML5Translator
 
@@ -50,7 +47,12 @@ class RevealJSTranslator(HTML5Translator):
         super().__init__(*args, **kwargs)
         self.builder.add_permalinks = False
 
-    def _new_section(self, node: nodes.Node) -> None:
+    def _new_section(
+        self,
+        node: nodes.Node,
+        tagname: str = "section",
+        classes_override: Optional[List[str]] = None,
+    ) -> None:
         """Add a new section.
 
         In RevealJS, a new section is a new slide.
@@ -58,9 +60,22 @@ class RevealJSTranslator(HTML5Translator):
 
         self.body.append(
             self.starttag(
-                node, "section", CLASS="section", **node.data_attributes
+                node,
+                tagname,
+                CLASS=" ".join(
+                    classes_override or (node["classes"] + ["section"])
+                ),
+                **{
+                    attr: val
+                    for attr, val in node.attributes.items()
+                    if attr.startswith("data-")
+                },
             )
         )
+
+    def visit_section(self, node):
+        self.section_level += 1
+        self._new_section(node)
 
     def visit_admonition(self, *args):
         raise nodes.SkipNode
@@ -213,18 +228,26 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
 
     def handle_newslides(self):
         soup_bridge, soup = self.soup_bridge, self.soup_bridge.soup
+        newslide_parents = []
+        all_newslides = []
 
         for newslide in soup.select(".newslide"):
-            parent = newslide.parent
+            if (
+                newslide.parent.name == "section"
+                and "section" in newslide.parent.get("class", "")
+            ):
+                newslide_parents.append(newslide.parent)
 
-            newslide_container = soup_bridge.copy_tag(parent)
+            parent = newslide_parents[-1]
 
-            del newslide_container["id"]  # Remove id
-            newslide_container["class"] = "slide-break"
-            newslide_container["data-slide-break-for"] = parent["id"]
-
-            for attr, val in newslide.attrs.items():
-                newslide_container[attr] = val
+            newslide_container = soup.new_tag(
+                "section",
+                **{
+                    "class": "newslide slide-break",
+                    "data-slide-break-for": parent["id"],
+                    "data-depth": parent["data-depth"],
+                },
+            )
 
             # Copy title
             parent_title = parent.find(lambda t: t.name in HEADING_TAGS)
@@ -232,15 +255,19 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
             copied_title.string = soup.new_string(parent_title.string)
             newslide_container.append(copied_title)
 
-            for sib in takewhile(
-                lambda child: child.get("class") != "newslide"
-                if type(child) is Tag
-                else True,
+            for sib in takewhile(  # This is very hacky :)
+                lambda el: '<div class="newslide">' not in repr(el),
                 list(newslide.next_siblings),
             ):
                 newslide_container.append(sib.extract())
 
-            parent.insert_after(newslide_container)
+            if all_newslides:
+                all_newslides[-1].insert_after(newslide_container)
+            else:
+                parent.insert_after(newslide_container)
+
+            all_newslides.append(newslide_container)
+
             newslide.decompose()
 
     def handle_autobreak(self):

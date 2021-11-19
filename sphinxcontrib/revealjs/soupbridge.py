@@ -54,6 +54,7 @@ class SoupBridge:
         """
 
         copied_tag = self.soup.new_tag(tag.name, **tag.attrs or {})
+
         if children:
             for child in tag.contents:
                 copied_tag.append(child)
