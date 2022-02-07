@@ -2,20 +2,18 @@
 
 from typing import Dict, Any, Tuple, List, Optional
 from docutils import nodes
-from bs4.element import Tag
 
 from os import path
-from itertools import takewhile
 from textwrap import dedent
 
 from sphinx.locale import __
 from sphinx.util import logging, progress_message
 from sphinx.util.fileutil import copy_asset
-from sphinx.util.osutil import copyfile
+from sphinx.util.osutil import copyfile, ensuredir
 from sphinx.builders.html import StandaloneHTMLBuilder
 from sphinx.writers.html5 import HTML5Translator
 
-from sphinxcontrib.revealjs.soupbridge import SoupBridge, HEADING_TAGS
+from bs4 import BeautifulSoup
 
 IMG_EXTENSIONS = ["jpg", "png", "gif", "svg"]
 
@@ -74,7 +72,7 @@ class RevealJSTranslator(HTML5Translator):
         )
 
     def visit_section(self, node):
-        self.section_level += 1
+        self.section_level = node.get("data-depth", 1)
         self._new_section(node)
 
     def visit_admonition(self, *args):
@@ -98,41 +96,61 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
     def init(self) -> None:
         super().init()
 
-        self.add_permalinks = self.get_builder_config("permalinks")
-        self.search = self.get_builder_config("search")
-
-    def get_builder_config(self, *args) -> Any:
-        if len(args) == 1:
-            return super().get_builder_config(args[0], "revealjs")
-        else:
-            return super().get_builder_config(*args)
+        self.add_permalinks = self.get_builder_config("permalinks", "revealjs")
+        self.search = self.get_builder_config("search", "revealjs")
 
     def get_theme_config(self) -> Tuple[str, Dict]:
         return (
-            self.env.config.revealjs_theme,
+            self.config.revealjs_theme,
             self.config.revealjs_theme_options,
         )
 
-    def copy_static_files(self) -> None:
-        super().copy_static_files()
+    def init_js_files(self) -> None:
+        """Register names of RevealJS JS dependencies."""
 
+        super().init_js_files()
+
+        self.add_js_file("reveal.js", priority=500)
+        self.add_js_file("plugin/notes/notes.js", priority=500)
+        self.add_js_file(
+            None,
+            body=dedent(
+                """
+                Reveal.initialize({
+                  hash: true,
+                  plugins: [RevealNotes]
+                });
+            """
+            ),
+            priority=500,
+        )
+
+    def init_css_files(self) -> None:
+        """Register names of RevealJS CSS dependencies.
+
+        See: https://github.com/hakimel/reveal.js/blob/6b535328c0a9615c9cf4759acf81cd02f0516ba1/index.html#L9-L11
+        """
+
+        super().init_css_files()
+
+        self.add_css_file("reset.css", priority=500)
+        self.add_css_file("reveal.css", priority=500)
+
+        if self.theme:
+            _, theme_opts = self.get_theme_config()
+            self.add_css_file(theme_opts["revealjs_theme"], priority=500)
+
+    def copy_static_files(self) -> None:
         try:
             with progress_message(__("copying static files")):
+                ensuredir(path.join(self.outdir, "_static"))
                 self.copy_revealjs_files()
                 self.copy_revealjs_plugin()
                 self.copy_revealjs_theme()
-
-                # This is hacky, but we need to call these methods again
-                # so that users can override RevealJS files. Code here
-                # is copied from sphinx.builders.html
-                context = self.globalcontext.copy()
-                if self.indexer is not None:
-                    context.update(self.indexer.context_for_searchtool())
-                self.copy_theme_static_files(context)
-                self.copy_html_static_files(context)
-
         except OSError as err:
             logger.warning(__("cannot copy static file %r"), err)
+
+        super().copy_static_files()
 
     def copy_revealjs_files(self) -> None:
         copyfile(
@@ -164,159 +182,7 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
                 path.join(self.outdir, "_static", revealjs_theme),
             )
 
-    def init_js_files(self) -> None:
-        super().init_js_files()
-
-        self.add_js_file("reveal.js", priority=500)
-        self.add_js_file("plugin/notes/notes.js", priority=500)
-        self.add_js_file(
-            None,
-            body=dedent(
-                """
-                Reveal.initialize({
-                  hash: true,
-                  plugins: [RevealNotes]
-                });
-            """
-            ),
-            priority=500,
-        )
-
-    def init_css_files(self) -> None:
-        super().init_css_files()
-
-        self.add_css_file("reset.css", priority=500)
-        self.add_css_file("reveal.css", priority=500)
-
-        if self.theme:
-            _, theme_opts = self.get_theme_config()
-            self.add_css_file(
-                theme_opts["revealjs_theme"],
-                priority=500,
-            )
-
-    def mark_slide_depths(self):
-        soup_bridge, soup = self.soup_bridge, self.soup_bridge.soup
-
-        for slide in soup.select("div.slides section"):
-            depth = soup_bridge.get_tag_depth(
-                slide, stopwhen=lambda t: "slides" in t.get("class", [])
-            )
-            slide.attrs["data-depth"] = depth
-
-    def unwrap_nested_slides(self):
-        """Unwrap and flatten any nested slides.
-
-        RevealJS turns <section> tags into slides.
-        """
-
-        soup = self.soup_bridge.soup
-
-        slides_container = soup.new_tag("div", attrs={"class": "slides"})
-
-        for slide in soup.select("div.slides section"):
-            xslide = slide.extract()
-
-            for child in takewhile(
-                lambda child: child.name != "section", xslide.children
-            ):
-                xslide.append(child.extract())
-
-            slides_container.append(xslide)
-
-        soup.find("div", class_="slides").replace_with(slides_container)
-
-    def handle_newslides(self):
-        soup_bridge, soup = self.soup_bridge, self.soup_bridge.soup
-        newslide_parents = []
-        all_newslides = []
-
-        for newslide in soup.select(".newslide"):
-            if (
-                newslide.parent.name == "section"
-                and "section" in newslide.parent.get("class", "")
-            ):
-                newslide_parents.append(newslide.parent)
-
-            parent = newslide_parents[-1]
-
-            newslide_container = soup.new_tag(
-                "section",
-                **{
-                    "class": "newslide slide-break",
-                    "data-slide-break-for": parent["id"],
-                    "data-depth": parent["data-depth"],
-                },
-            )
-
-            # Copy title
-            parent_title = parent.find(lambda t: t.name in HEADING_TAGS)
-            copied_title = soup.new_tag(parent_title.name)
-            copied_title.string = soup.new_string(parent_title.string)
-            newslide_container.append(copied_title)
-
-            for sib in takewhile(  # This is very hacky :)
-                lambda el: '<div class="newslide">' not in repr(el),
-                list(newslide.next_siblings),
-            ):
-                newslide_container.append(sib.extract())
-
-            if all_newslides:
-                all_newslides[-1].insert_after(newslide_container)
-            else:
-                parent.insert_after(newslide_container)
-
-            all_newslides.append(newslide_container)
-
-            newslide.decompose()
-
-    def handle_autobreak(self):
-        soup = self.soup_bridge.soup
-
-        for slide in [
-            s
-            for s in soup.select("div.slides section")
-            if "slide-break" not in s.attrs.get("class", "")
-        ]:
-            if "data-depth" in slide.attrs and slide.attrs[
-                "data-depth"
-            ] not in (self.config.revealjs_autobreak or (1,)):
-                new_section = soup.new_tag(
-                    "div",
-                    attrs={
-                        "class": "section",
-                        "data-depth": slide.attrs["data-depth"],
-                    },
-                )
-
-                for child in slide.children:
-                    new_section.append(child.extract())
-
-                try:
-                    slide.previous_sibling.append(new_section)
-                except AttributeError:
-                    import pdb
-
-                    pdb.set_trace()
-                slide.decompose()
-
-    def handle_vertical_slides(self):
-        soup = self.soup_bridge.soup
-
-        for slide in soup.find_all(
-            lambda tag: tag.get("data-depth") in (1, 2)
-        ):
-            wrapper = slide.wrap(soup.new_tag("section"))
-
-            if slide.attrs["data-depth"] == 2:
-                for inner_slide in takewhile(
-                    lambda tag: type(tag) is Tag
-                    and tag.attrs["data-depth"] > 2,
-                    list(wrapper.next_siblings),
-                ):
-                    wrapper.append(inner_slide.extract())
-
-    def rewrite_html_for_revealjs(self):
+    def write_vertical_slides(self):
         """Rearrange rendered HTML so it plays nice with RevealJS.
 
         We used to override visit/depart methods in RevealJSTranslator
@@ -325,22 +191,55 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
 
         This is an unconventional way to do things but it should be
         far more understandable and maintainable.
+
+        h1 and h2 titles mark the beginning of each vertical stack
+        of slides. We're basically doing this:
+
+            h1     h2     h2     h2
+                   h3     h3
+                   h3     h3
+                   h3
         """
 
         outfile = self.get_outfilename(self.current_docname)
-        self.soup_bridge = SoupBridge(outfile)
+        with open(outfile) as f:
+            soup = BeautifulSoup(f.read(), "html.parser")
 
-        self.mark_slide_depths()
-        self.unwrap_nested_slides()
-        self.handle_newslides()
-        if self.config.revealjs_vertical_slides:
-            logger.info(__("Handling vertical slides..."))
-            self.handle_vertical_slides()
+        # Isolate title slides (section elements with depth 1)
+        for slide in soup.find_all(lambda el: el.get("data-depth") == "1"):
+            slide.wrap(soup.new_tag("section"))
 
-        self.handle_autobreak()
+        # Then, sections with h2 titles (equivalent to data-depth="2")
+        # mark the beginning of their own vertical stacks.
+        for slide in soup.find_all(lambda tag: tag.get("data-depth") == "2"):
+            wrapper = slide.wrap(soup.new_tag("section"))
 
-        self.soup_bridge.write()
+            # Add slides until we get to the next h2 section
+            sib = next(wrapper.next_siblings)
+            while True:
+                if sib.get("data-depth") == "2":
+                    break
+
+                wrapper.append(sib.extract())
+
+                try:
+                    sib = next(wrapper.next_siblings)
+                except StopIteration:
+                    break
+
+            # Clean up any nested sections. RevealJS gets buggy
+            # when slides are nested more than 2 deep.
+            for subsection in wrapper.find_all(
+                lambda tag: int(tag.get("data-depth", 0)) > 3
+            ):
+                subsection.unwrap()
+
+        with open(outfile, "w") as f:
+            f.write(soup.prettify())
 
     def finish(self) -> None:
-        self.finish_tasks.add_task(self.rewrite_html_for_revealjs)
+        if self.config.revealjs_vertical_slides:
+            logger.info(__("Rewriting HTML to create vertical slides..."))
+            self.finish_tasks.add_task(self.write_vertical_slides)
+
         return super().finish()

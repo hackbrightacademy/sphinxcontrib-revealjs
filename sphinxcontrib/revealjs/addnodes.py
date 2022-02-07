@@ -44,13 +44,15 @@ def depart_speakernote(self, node: nodes.Node) -> None:
 
 
 def visit_newslide(self, node: nodes.Node) -> None:
-    self._new_section(
-        node,
-        tagname="div",
-        classes_override=node["classes"] + ["newslide"],
+    # Close previous section and start a new one.
+    self.body.append("</section>")
+    self._new_section(node)
+
+    title_tagname = f"h{self.section_level}"
+    self.body.append(
+        f"<{title_tagname}>{node['localtitle']}</{title_tagname}>"
     )
 
 
 def depart_newslide(self, node: nodes.Node) -> None:
-
-    self.body.append("</div>\n")
+    return None
