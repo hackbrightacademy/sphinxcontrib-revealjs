@@ -217,7 +217,8 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
             # Add slides until we get to the next h2 section
             sib = next(wrapper.next_siblings)
             while True:
-                if sib.get("data-depth") == "2":
+                sib_attr = getattr(sib, "attr", {})
+                if sib_attr and sib_attr.get("data-depth") == "2":
                     break
 
                 wrapper.append(sib.extract())
