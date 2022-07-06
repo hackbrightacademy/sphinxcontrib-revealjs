@@ -24,3 +24,25 @@ Content
 
 Heading 4
 +++++++++
+
+Another Title
+-------------
+
+This is another slide
+
+Heading 2.2
+===========
+
+Heading 2.2.1
+-------------
+
+HENLLOOO
+
+.. newslide::
+
+meow
+
+Heading 2.2.2
+-------------
+
+Whee

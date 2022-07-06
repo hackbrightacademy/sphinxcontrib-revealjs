@@ -28,7 +28,9 @@ def test_revealjs_build(app):
 
 @pytest.mark.sphinx(buildername="revealjs", testroot="builder-revealjs")
 def test_revealjs_theme_css(app):
-    default_theme = "simple.css"
+    default_theme = app.config.revealjs_theme_options[
+        "revealjs_theme"
+    ] = "simple.css"
 
     app.build()
 
@@ -85,8 +87,9 @@ def test_revealjs_translator(app, cached_etree_parse, fname, expect):
         {
             "index.html": [
                 (
-                    ".//div[@class='slides']/section[2]/section[2]/div[@class='section']/h4",
-                    "",
+                    ".//div[@class='slides']/section[2]/section[2]/h4",
+                    "Heading 4",
+                    True,
                 ),
             ]
         }

@@ -1,6 +1,24 @@
+=========
+Heading 1
+=========
+
+Heading 2
+=========
+
+Heading 3
+---------
+
+The quick brown fox jumps over the lazy dog.
+
+.. newslide::
+
+This content appears on a new slide!
+
 =====
 Index
 =====
+
+This should appear.
 
 .. admonition:: Should not appear
 
@@ -16,6 +34,8 @@ Index
 
 Heading 2
 =========
+
+A paragraph.
 
 Heading 3
 ---------
