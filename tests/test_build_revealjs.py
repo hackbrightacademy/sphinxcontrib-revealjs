@@ -28,13 +28,13 @@ def test_revealjs_build(app):
 
 @pytest.mark.sphinx(buildername="revealjs", testroot="builder-revealjs")
 def test_revealjs_theme_css(app):
-    default_theme = app.config.revealjs_theme_options[
-        "revealjs_theme"
-    ] = "simple.css"
-
     app.build()
 
-    assert (app.outdir / "_static" / default_theme).exists()
+    assert (
+        app.outdir
+        / "_static"
+        / app.config.revealjs_theme_options["revealjs_theme"]
+    ).exists()
 
 
 @pytest.mark.sphinx(
@@ -95,41 +95,11 @@ def test_revealjs_translator(app, cached_etree_parse, fname, expect):
         }
     ),
 )
-@pytest.mark.sphinx(buildername="revealjs", testroot="builder-revealjs")
-def test_revealjs_autobreak_slides(app, cached_etree_parse, fname, expect):
-    app.build()
-
-    check_xpath(cached_etree_parse(app.outdir / fname), fname, *expect)
-
-
-@pytest.mark.parametrize(
-    "fname,expect",
-    flat_dict(
-        {
-            "index.html": [
-                (
-                    ".//div[@class='slides']/section[1]/section/h1",
-                    "Index",
-                    True,
-                ),
-                (
-                    ".//div[@class='slides']/section[2]/section[1]/h2",
-                    "Heading 2",
-                    True,
-                ),
-                (
-                    ".//div[@class='slides']/section/section[2]/h3",
-                    "Heading 3",
-                    True,
-                ),
-            ]
-        }
-    ),
+@pytest.mark.sphinx(
+    buildername="revealjs",
+    testroot="builder-revealjs",
 )
-@pytest.mark.sphinx(buildername="revealjs", testroot="builder-revealjs")
-def test_revealjs_build_vertical_slides(
-    app, cached_etree_parse, fname, expect
-):
+def test_revealjs_autobreak_slides(app, cached_etree_parse, fname, expect):
     app.build()
 
     check_xpath(cached_etree_parse(app.outdir / fname), fname, *expect)
@@ -146,12 +116,12 @@ def test_revealjs_build_vertical_slides(
                     True,
                 ),
                 (
-                    ".//div[@class='slides']/section[2]/h2",
+                    ".//div[@class='slides']/section[2]/section[1]/h2",
                     "Heading 2",
                     True,
                 ),
                 (
-                    ".//div[@class='slides']/section[3]/h3",
+                    ".//div[@class='slides']/section[2]/section[2]/h3",
                     "Heading 3",
                     True,
                 ),
@@ -159,8 +129,8 @@ def test_revealjs_build_vertical_slides(
         }
     ),
 )
-@pytest.mark.sphinx(buildername="revealjs", testroot="revealjs-conf")
-def test_revealjs_build_no_vertical_slides(
+@pytest.mark.sphinx(buildername="revealjs", testroot="builder-revealjs")
+def test_revealjs_build_vertical_slides(
     app, cached_etree_parse, fname, expect
 ):
     app.build()
