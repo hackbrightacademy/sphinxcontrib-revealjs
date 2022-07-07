@@ -21,19 +21,6 @@ logger = logging.getLogger(__name__)
 package_dir = path.abspath(path.dirname(__file__))
 
 
-def get_attrs_as_html(node_attrs: Dict[str, Any]):
-    """Convert docutil node attributes to HTML data- attributes."""
-
-    basic_attrs = set(nodes.section.basic_attributes)
-
-    html_attrs = {}
-    for attr, val in node_attrs.items():
-        if attr not in basic_attrs and type(val) is str:
-            attr_name = f"data-{attr}" if attr != "class" else attr
-            html_attrs[attr_name] = val
-    return html_attrs
-
-
 class RevealJSTranslator(HTML5Translator):
     """Translator for writing RevealJS slides."""
 
@@ -71,9 +58,31 @@ class RevealJSTranslator(HTML5Translator):
             )
         )
 
-    def visit_section(self, node):
-        self.section_level = node.get("data-depth", 1)
-        self._new_section(node)
+    def visit_section(self, node: nodes.Node) -> None:
+        """Only add a new section for 2nd- or 3rd-level sections."""
+
+        self.section_level += 1
+
+        if self.section_level in [2, 3]:
+            self._new_section(node)
+
+    def depart_section(self, node: nodes.Node) -> None:
+        self.section_level -= 1
+
+        if self.section_level in [1, 2]:
+            self.body.append("</section>")
+
+    def visit_title(self, node: nodes.Node) -> None:
+        if self.section_level in [1, 2]:
+            self.body.append("<section>")
+
+        super().visit_title(node)
+
+    def depart_title(self, node: nodes.Node) -> None:
+        super().depart_title(node)
+
+        if self.section_level in [1, 2]:
+            self.body.append("</section>")
 
     def visit_admonition(self, *args):
         raise nodes.SkipNode
@@ -181,66 +190,3 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
                 path.join(self.revealjs_dist, "theme", revealjs_theme),
                 path.join(self.outdir, "_static", revealjs_theme),
             )
-
-    def write_vertical_slides(self):
-        """Rearrange rendered HTML so it plays nice with RevealJS.
-
-        We used to override visit/depart methods in RevealJSTranslator
-        to accomplish what this method does but the logic got really
-        *weird* and difficult to understand.
-
-        This is an unconventional way to do things but it should be
-        far more understandable and maintainable.
-
-        h1 and h2 titles mark the beginning of each vertical stack
-        of slides. We're basically doing this:
-
-            h1     h2     h2     h2
-                   h3     h3
-                   h3     h3
-                   h3
-        """
-
-        outfile = self.get_outfilename(self.current_docname)
-        with open(outfile) as f:
-            soup = BeautifulSoup(f.read(), "html.parser")
-
-        # Isolate title slides (section elements with depth 1)
-        for slide in soup.find_all(lambda el: el.get("data-depth") == "1"):
-            slide.wrap(soup.new_tag("section"))
-
-        # Then, sections with h2 titles (equivalent to data-depth="2")
-        # mark the beginning of their own vertical stacks.
-        for slide in soup.find_all(lambda tag: tag.get("data-depth") == "2"):
-            wrapper = slide.wrap(soup.new_tag("section"))
-
-            # Add slides until we get to the next h2 section
-            sib = next(wrapper.next_siblings)
-            while True:
-                sib_attr = getattr(sib, "attr", {})
-                if sib_attr and sib_attr.get("data-depth") == "2":
-                    break
-
-                wrapper.append(sib.extract())
-
-                try:
-                    sib = next(wrapper.next_siblings)
-                except StopIteration:
-                    break
-
-            # Clean up any nested sections. RevealJS gets buggy
-            # when slides are nested more than 2 deep.
-            for subsection in wrapper.find_all(
-                lambda tag: int(tag.get("data-depth", 0)) > 3
-            ):
-                subsection.unwrap()
-
-        with open(outfile, "w") as f:
-            f.write(soup.prettify())
-
-    def finish(self) -> None:
-        if self.config.revealjs_vertical_slides:
-            logger.info(__("Rewriting HTML to create vertical slides..."))
-            self.finish_tasks.add_task(self.write_vertical_slides)
-
-        return super().finish()
