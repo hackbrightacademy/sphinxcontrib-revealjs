@@ -35,9 +35,7 @@ def setup(app: Sphinx) -> None:
     app.add_config_value(
         "revealjs_theme_options", {"revealjs_theme": "black.css"}, "html"
     )
-    app.add_config_value("revealjs_vertical_slides", True, "html")
     app.add_config_value("revealjs_break_on_transition", True, "html")
-    app.add_config_value("revealjs_autobreak", [1, 2, 3], "html")
 
     # Nodes
     app.add_node(
@@ -65,8 +63,9 @@ def setup(app: Sphinx) -> None:
 
     # Transforms
     app.connect("doctree-read", transforms.migrate_transitions_to_newslides)
-    app.add_post_transform(transforms.UnwrapSectionNodes)
-    app.add_post_transform(transforms.AddNewslideTitles)
+    # app.add_post_transform(transforms.UnwrapSectionNodes)
+    # app.add_post_transform(transforms.AddNewslideTitles)
+    app.connect("doctree-resolved", transforms.process_newslides)
 
     # Builders
     app.add_builder(builders.RevealJSBuilder)
