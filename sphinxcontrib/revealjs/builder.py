@@ -1,19 +1,19 @@
-"""Sphinx writer for slides."""
+"""RevealJS builder.
+
+The builder is used with transforms to convert default Sphinx HTML output to
+RevealJS-compatible HTML.
+"""
 
 from typing import Dict, Any, Tuple, List, Optional
-from docutils import nodes
-
 from os import path
 from textwrap import dedent
 
-from sphinx.locale import __
+from docutils import nodes
 from sphinx.util import logging, progress_message
 from sphinx.util.fileutil import copy_asset
 from sphinx.util.osutil import copyfile, ensuredir
 from sphinx.builders.html import StandaloneHTMLBuilder
 from sphinx.writers.html5 import HTML5Translator
-
-from bs4 import BeautifulSoup
 
 IMG_EXTENSIONS = ["jpg", "png", "gif", "svg"]
 
@@ -24,13 +24,8 @@ package_dir = path.abspath(path.dirname(__file__))
 class RevealJSTranslator(HTML5Translator):
     """Translator for writing RevealJS slides."""
 
-    permalink_text = False
     _dl_fragment = 0
     section_level = 1
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.builder.add_permalinks = False
 
     def _new_section(
         self,
@@ -99,16 +94,14 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
 
     name = "revealjs"
     default_translator_class = RevealJSTranslator
+    search = False
+
     revealjs_dist = path.join(package_dir, "lib/revealjs/dist")
     revealjs_plugindir = path.join(package_dir, "lib/revealjs/plugin")
 
-    def init(self) -> None:
-        super().init()
-
-        self.add_permalinks = self.get_builder_config("permalinks", "revealjs")
-        self.search = self.get_builder_config("search", "revealjs")
-
     def get_theme_config(self) -> Tuple[str, Dict]:
+        """Override get_theme_config to return the theme config for RevealJS."""
+
         return (
             self.config.revealjs_theme,
             self.config.revealjs_theme_options,
@@ -150,14 +143,16 @@ class RevealJSBuilder(StandaloneHTMLBuilder):
             self.add_css_file(theme_opts["revealjs_theme"], priority=500)
 
     def copy_static_files(self) -> None:
+        """Copy RevealJS static files to the output directory."""
+
         try:
-            with progress_message(__("copying static files")):
+            with progress_message("copying static files"):
                 ensuredir(path.join(self.outdir, "_static"))
                 self.copy_revealjs_files()
                 self.copy_revealjs_plugin()
                 self.copy_revealjs_theme()
         except OSError as err:
-            logger.warning(__("cannot copy static file %r"), err)
+            logger.warning("cannot copy static file %r", err)
 
         super().copy_static_files()
 
