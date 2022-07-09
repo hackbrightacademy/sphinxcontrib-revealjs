@@ -4,11 +4,12 @@ from docutils.nodes import Node
 
 from os import path
 from pathlib import Path
-from sphinx.application import Sphinx
 
 from docutils import nodes
+from sphinx.application import Sphinx
+from sphinx.config import Config
 
-from . import transforms, addnodes, builders
+from . import addnodes, builder, transforms
 
 from .directives.slides import Interslide, Newslide
 from .directives.incremental import Incremental
@@ -20,22 +21,26 @@ def ignore_node(self, node: Node) -> None:
 
 
 def setup(app: Sphinx) -> None:
+    app.setup_extension("sphinx.builders.html")
+
+    # Setup builder and transforms
+    app.add_builder(builder.RevealJSBuilder)
+    app.connect("doctree-read", transforms.migrate_transitions_to_newslides)
+    app.connect("doctree-resolved", transforms.process_newslides)
+
     # Theme
     app.add_html_theme(
         "revealjs",
-        (Path(builders.package_dir) / Path("theme")).resolve(),
+        (Path(builder.package_dir) / Path("theme")).resolve(),
     )
 
-    app.add_js_file("reveal.js")
-
-    # Config
-    app.add_config_value("revealjs_permalinks", False, "html")
-    app.add_config_value("revealjs_search", False, "html")
+    # Config values
     app.add_config_value("revealjs_theme", "revealjs", "html")
     app.add_config_value(
         "revealjs_theme_options", {"revealjs_theme": "black.css"}, "html"
     )
     app.add_config_value("revealjs_break_on_transition", True, "html")
+    app.add_config_value("revealjs_newslides_inherit_titles", True, "html")
 
     # Nodes
     app.add_node(
@@ -60,12 +65,3 @@ def setup(app: Sphinx) -> None:
     app.add_directive("speaker", Speakernote)
     app.add_directive("incremental", Incremental)
     app.add_directive("incr", Incremental)
-
-    # Transforms
-    app.connect("doctree-read", transforms.migrate_transitions_to_newslides)
-    # app.add_post_transform(transforms.UnwrapSectionNodes)
-    # app.add_post_transform(transforms.AddNewslideTitles)
-    app.connect("doctree-resolved", transforms.process_newslides)
-
-    # Builders
-    app.add_builder(builders.RevealJSBuilder)
